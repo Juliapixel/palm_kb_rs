@@ -1,0 +1,14 @@
+[package]
+edition = "2021"
+name = "kb_driver_proc_macro"
+version = "0.1.0"
+authors = ["Juliapixel <89038897+Juliapixel@users.noreply.github.com>"]
+resolver = "2"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+proc-macro2 = "1.0"

@@ -1,0 +1,13 @@
+[workspace]
+members = ["kb_driver", "kb_driver_proc_macro"]
+resolver = "2"
+
+[profile.release]
+lto = "fat"
+opt-level = "s"
+debug = 2
+
+[profile.dev]
+opt-level = "s"
+debug-assertions = true
+debug = 2
