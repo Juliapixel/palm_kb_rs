@@ -28,6 +28,10 @@ impl State {
         }
     }
 
+    pub fn reset(&mut self) {
+        *self = Self::new();
+    }
+
     /// Uses values received directly from the UART line to update the state
     pub fn update_from_kb_input(&mut self, input: u8) {
         if let Some(key) = KeyCode::try_from_matrix_key(input) {

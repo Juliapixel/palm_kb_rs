@@ -1,17 +1,18 @@
-use embassy_futures::{join::join, select::select};
+use embassy_futures::{join::join, select::{select, select3, Either3}};
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
-use embassy_time::Timer;
+use embassy_time::{Duration, Ticker, Timer};
 use embassy_usb::class::hid::HidWriter;
 use embassy_stm32::{
     exti::ExtiInput,
     gpio::{Output, Pin},
     mode::Async,
     peripherals::USB_OTG_FS,
-    usart::{BasicInstance, Error, UartRx},
+    usart::{BasicInstance, BufferedUartRx, Error, RingBufferedUartRx, UartRx},
     usb::Driver,
     Peripheral,
     PeripheralRef
 };
+use embedded_io_async::Read;
 use usbd_hid::descriptor::KeyboardReport;
 
 use crate::{debug, error, info, warn};
@@ -47,10 +48,10 @@ async fn write_kb_report<'d>(report: &'static Mutex<ThreadModeRawMutex, Keyboard
 
 /// Reads the initial handshake bytes and checks if they're right
 async fn read_initial_bytes<'d, T: BasicInstance>(
-    uart: &mut UartRx<'d, T, Async>
+    uart: &mut RingBufferedUartRx<'d, T>
 ) -> bool {
     let mut buf = [0u8; 2];
-    let resp = uart.read(&mut buf).await;
+    let resp = uart.read_exact(&mut buf).await;
     debug!("received initial buf: {:02X}", &buf);
     match resp {
         Ok(_) => {
@@ -63,7 +64,7 @@ async fn read_initial_bytes<'d, T: BasicInstance>(
 async fn receive_forever<'u, T: BasicInstance>(
     report: &'static Mutex<ThreadModeRawMutex, KeyboardReport>,
     state: &mut State,
-    uart: &mut UartRx<'u, T, Async>
+    uart: &mut RingBufferedUartRx<'u, T>
 ) -> ! {
     loop {
         let mut buf = [0u8; 1];
@@ -92,49 +93,67 @@ async fn listen_kb<'p, T: BasicInstance>(
     mut rts: Output<'p>,
     mut dcd: ExtiInput<'p>,
     mut state: State,
-    mut uart: UartRx<'p, T, Async>
+    uart: UartRx<'p, T, Async>
 ) {
     // reset to initial state in case it wasn't already at it
     vcc.set_low();
     rts.set_low();
-    Timer::after_millis(15).await;
-
-    // turn on power delivery to kb
-    vcc.set_high();
-
-    // wait for keyboard to be ready
-    dcd.wait_for_rising_edge().await;
-    info!("keyboard ready");
-
-    // toggle RTS to trigger the handshake frames
-    rts.set_high();
-
-    let handshake_successful = read_initial_bytes(&mut uart).await;
-    // TODO: handle this when things are stable enough to actually be able to
-    // properly receive the initial frames
-    if handshake_successful {
-        info!("keyboard handshake successful")
-    } else {
-        error!("keyboard handshake unsuccessful")
-    }
+    let mut ring_buffer = [0u8; 256];
+    let mut uart = uart.into_ring_buffered(&mut ring_buffer);
 
     loop {
-        select(
-            dcd.wait_for_rising_edge(),
-            receive_forever(report, &mut state, &mut uart)
-        ).await;
+        // toggle RTS to trigger the handshake frames
         rts.set_low();
+        Timer::after(Duration::from_millis(15)).await;
+        // turn on power delivery to kb
+        vcc.set_high();
         rts.set_high();
-        info!("keyboard reconnected!");
 
-        let handshake_successful = read_initial_bytes(&mut uart).await;
-        // TODO: handle this when things are stable enough to actually be able to
-        // properly receive the initial frames
+        let handshake_successful = embassy_time::with_timeout(
+            Duration::from_millis(100),
+            read_initial_bytes(&mut uart)
+        ).await.unwrap_or(false);
         if handshake_successful {
-            info!("keyboard handshake successful")
+            info!("keyboard handshake successful");
+            break;
         } else {
-            error!("keyboard handshake unsuccessful")
+            error!("keyboard handshake unsuccessful");
         }
+    }
+
+    // toggle RTS and perform handshake every 30s to avoid going into low-power mode
+    let mut ticker = Ticker::every(Duration::from_secs(30));
+
+    loop {
+        select3(
+            dcd.wait_for_rising_edge(),
+            ticker.next(),
+            receive_forever(report, &mut state, &mut uart),
+        ).await;
+
+        let mut err_count: u32 = 0;
+        loop {
+            rts.set_low();
+            // gotta have this here or kb just will not notice the toggle
+            Timer::after(Duration::from_millis(15)).await;
+            rts.set_high();
+            info!("keyboard reconnecting");
+            let handshake_successful = embassy_time::with_timeout(
+                Duration::from_millis(30),
+                read_initial_bytes(&mut uart)
+            ).await.unwrap_or(false);
+            if handshake_successful {
+                info!("keyboard handshake successful");
+                break;
+            } else {
+                error!("keyboard handshake unsuccessful");
+                err_count += 1;
+                if err_count >= 5 {
+                    state.reset();
+                }
+            }
+        }
+        ticker.reset();
     }
 }
 
