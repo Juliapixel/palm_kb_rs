@@ -72,6 +72,7 @@ async fn listen_kb<'p, T: BasicInstance>(
     // reset to initial state in case it wasn't already at it
     vcc.set_low();
     rts.set_low();
+    Timer::after_millis(15).await;
 
     // turn on power delivery to kb
     vcc.set_high();
