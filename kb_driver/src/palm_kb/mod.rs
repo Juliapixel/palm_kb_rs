@@ -1,8 +1,16 @@
 use embassy_futures::join::join;
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 use embassy_usb::class::hid::HidWriter;
-use embassy_stm32::{exti::ExtiInput, gpio::{AnyPin, Output, Pin}, mode::Async, peripherals::USB_OTG_FS, usart::{BasicInstance, Error, UartRx}, usb::Driver, Peripheral, PeripheralRef};
-use embassy_time::{Duration, Instant, Timer};
+use embassy_stm32::{
+    exti::ExtiInput,
+    gpio::{Output, Pin},
+    mode::Async,
+    peripherals::USB_OTG_FS,
+    usart::{BasicInstance, Error, UartRx},
+    usb::Driver,
+    Peripheral,
+    PeripheralRef
+};
 use usbd_hid::descriptor::KeyboardReport;
 
 use crate::{debug, error, info, warn};
