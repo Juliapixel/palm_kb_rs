@@ -121,7 +121,7 @@ impl<'d, 'u, T: BasicInstance, V: Pin, R: Pin> KeyboardDriver<'d, 'u, T, V, R> {
         exti: impl Peripheral<P = D::ExtiChannel> + 'd,
         writer: HidWriter<'d, Driver<'d, USB_OTG_FS>, 8>
     ) -> Self {
-        let input = ExtiInput::new(dcd, exti, embassy_stm32::gpio::Pull::None);
+        let input = ExtiInput::new(dcd, exti, embassy_stm32::gpio::Pull::Down);
         Self {
             uart,
             vcc: vcc.into_ref(),
