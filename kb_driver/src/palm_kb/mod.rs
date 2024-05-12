@@ -60,6 +60,7 @@ async fn read_initial_bytes<'d, T: BasicInstance>(
 }
 
 /// Main driver loop, manages the connection to the keyboard and stuff
+/// TODO: implement periodic keyboard detection to avoid having the keyboard go into sleep mode
 async fn listen_kb<'p, T: BasicInstance>(
     report: &'static Mutex<ThreadModeRawMutex, KeyboardReport>,
     mut vcc: Output<'p>,
