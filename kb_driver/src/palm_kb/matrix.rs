@@ -1,5 +1,7 @@
 use crate::key_codes::KeyCode as Kc;
 
+/// The coordinates of keys on the physical key matrix of the keyboard, as shown
+/// [here](https://www.splorp.com/pdf/stowawayhwref.pdf) on page 18
 pub const MATRIX: [Option<Kc>; 90] = [
     // Y0
     Some(Kc::Keyboard1AndExclamation),
