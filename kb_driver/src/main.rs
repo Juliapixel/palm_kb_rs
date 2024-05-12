@@ -5,11 +5,7 @@ use kb_driver_proc_macro::{debug, error, info};
 use embassy_executor::Spawner;
 use embassy_futures::select::{select3, Either3};
 use embassy_stm32::{
-    bind_interrupts,
-    gpio::{AnyPin, Output, Pin},
-    peripherals::{self},
-    usart::{self, Config as UsartConfig, DataBits, Parity, StopBits, UartRx},
-    usb::{self, Config as UsbOtgConfig}, Config
+    bind_interrupts, gpio::{AnyPin, Output, Pin}, peripherals, time::Hertz, usart::{self, Config as UsartConfig, DataBits, Parity, StopBits, UartRx}, usb::{self, Config as UsbOtgConfig}, Config
 };
 use embassy_time::{Duration, Timer};
 use embassy_usb::{
@@ -40,19 +36,17 @@ async fn main(spawner: Spawner) {
     let mut config = Config::default();
     {
         use embassy_stm32::rcc::*;
-        // for some reason embassy hangs if we use the HSE clock
-        // config.rcc.hse = Some(Hse {
-        //     freq: Hertz(25_000_000),
-        //     mode: HseMode::Bypass,
-        // });
-        config.rcc.hsi = true;
-        // HSI is 16MHz
-        config.rcc.pll_src = PllSource::HSI;
+        config.rcc.hse = Some(Hse {
+            freq: Hertz(25_000_000),
+            mode: HseMode::Oscillator,
+        });
+        config.rcc.hsi = false;
+        config.rcc.pll_src = PllSource::HSE;
         config.rcc.pll = Some(Pll {
-            prediv: PllPreDiv::DIV16,
+            prediv: PllPreDiv::DIV25,
             mul: PllMul::MUL192,
-            divp: Some(PllPDiv::DIV2), // 16MHz / 16 * 192 / 2 = 96Mhz.
-            divq: Some(PllQDiv::DIV4), // 16MHz / 16 * 192 / 4 = 48Mhz.
+            divp: Some(PllPDiv::DIV2), // 25MHz / 25 * 192 / 2 = 96Mhz.
+            divq: Some(PllQDiv::DIV4), // 25MHz / 25 * 192 / 4 = 48Mhz.
             divr: None,
         });
         config.rcc.ahb_pre = AHBPrescaler::DIV1;
