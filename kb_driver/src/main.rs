@@ -6,11 +6,10 @@ use embassy_executor::Spawner;
 use embassy_futures::select::{select3, Either3};
 use embassy_stm32::{
     bind_interrupts,
-    exti::ExtiInput,
     gpio::{AnyPin, Output, Pin},
     peripherals::{self},
     usart::{self, Config as UsartConfig, DataBits, Parity, StopBits, UartRx},
-    usb::{self, Config as UsbOtgConfig}, Config, Peripheral
+    usb::{self, Config as UsbOtgConfig}, Config
 };
 use embassy_time::{Duration, Timer};
 use embassy_usb::{
