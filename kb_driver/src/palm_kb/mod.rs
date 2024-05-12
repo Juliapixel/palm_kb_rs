@@ -1,5 +1,6 @@
-use embassy_futures::join::join;
+use embassy_futures::{join::join, select::select};
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
+use embassy_time::Timer;
 use embassy_usb::class::hid::HidWriter;
 use embassy_stm32::{
     exti::ExtiInput,
@@ -59,6 +60,30 @@ async fn read_initial_bytes<'d, T: BasicInstance>(
     }
 }
 
+async fn receive_forever<'u, T: BasicInstance>(
+    report: &'static Mutex<ThreadModeRawMutex, KeyboardReport>,
+    state: &mut State,
+    uart: &mut UartRx<'u, T, Async>
+) -> ! {
+    loop {
+        let mut buf = [0u8; 1];
+        let read = uart.read(&mut buf).await;
+        match read {
+            Ok(_) => {
+                debug!("received buf: {:08b}", buf[0]);
+                state.update_from_kb_input(buf[0]);
+                *report.lock().await = KeyboardReport::from(&*state);
+            },
+            Err(Error::Framing) => warn!("UART Framing error"),
+            Err(Error::BufferTooLong) => warn!("UART buffer too long for DMA"),
+            Err(Error::Noise) => warn!("UART Noise error"),
+            Err(Error::Overrun) => warn!("UART buffer overrun"),
+            Err(Error::Parity) => warn!("UART parity bit error"),
+            Err(_) => error!("UART unknown error"),
+        };
+    }
+}
+
 /// Main driver loop, manages the connection to the keyboard and stuff
 /// TODO: implement periodic keyboard detection to avoid having the keyboard go into sleep mode
 async fn listen_kb<'p, T: BasicInstance>(
@@ -94,21 +119,22 @@ async fn listen_kb<'p, T: BasicInstance>(
     }
 
     loop {
-        let mut buf = [0u8; 1];
-        let read = uart.read(&mut buf).await;
-        match read {
-            Ok(_) => {
-                debug!("received buf: {:08b}", buf[0]);
-                state.update_from_kb_input(buf[0]);
-                *report.lock().await = KeyboardReport::from(&state);
-            },
-            Err(Error::Framing) => warn!("UART Framing error"),
-            Err(Error::BufferTooLong) => warn!("UART buffer too long for DMA"),
-            Err(Error::Noise) => warn!("UART Noise error"),
-            Err(Error::Overrun) => warn!("UART buffer overrun"),
-            Err(Error::Parity) => warn!("UART parity bit error"),
-            Err(_) => error!("UART unknown error"),
-        };
+        select(
+            dcd.wait_for_rising_edge(),
+            receive_forever(report, &mut state, &mut uart)
+        ).await;
+        rts.set_low();
+        rts.set_high();
+        info!("keyboard reconnected!");
+
+        let handshake_successful = read_initial_bytes(&mut uart).await;
+        // TODO: handle this when things are stable enough to actually be able to
+        // properly receive the initial frames
+        if handshake_successful {
+            info!("keyboard handshake successful")
+        } else {
+            error!("keyboard handshake unsuccessful")
+        }
     }
 }
 
