@@ -5,7 +5,13 @@ use kb_driver_proc_macro::{debug, error, info};
 use embassy_executor::Spawner;
 use embassy_futures::select::{select3, Either3};
 use embassy_stm32::{
-    bind_interrupts, gpio::{AnyPin, Output, Pin}, peripherals, time::Hertz, usart::{self, Config as UsartConfig, DataBits, Parity, StopBits, UartRx}, usb::{self, Config as UsbOtgConfig}, Config
+    bind_interrupts,
+    gpio::{AnyPin, Output, Pin},
+    peripherals,
+    time::Hertz,
+    usart::{self, Config as UsartConfig, DataBits, Parity, StopBits, UartRx},
+    usb::{self, Config as UsbOtgConfig},
+    Config
 };
 use embassy_time::{Duration, Timer};
 use embassy_usb::{
