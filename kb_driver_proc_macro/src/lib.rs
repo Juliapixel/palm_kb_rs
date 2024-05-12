@@ -15,7 +15,7 @@ macro_rules! defmt_stmt {
             quote! {
                 {
                     #[cfg(feature = "defmt")]
-                    defmt::$name!(#stream)
+                    ::defmt::$name!(#stream)
                 }
             }.into()
         }
