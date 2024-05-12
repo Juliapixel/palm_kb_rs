@@ -46,7 +46,7 @@ pub const MATRIX: [Option<Kc>; 90] = [
     // Y4
     None,
     None,
-    Some(Kc::KeyboardLeftAlt),
+    Some(Kc::KeyBoardNoKey), // Fn key
     Some(Kc::KeyboardLeftAlt),
     None,
     None,
