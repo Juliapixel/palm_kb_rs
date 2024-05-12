@@ -32,6 +32,7 @@ pub struct KeyboardDriver<'d, 'u, T: BasicInstance, V: Pin, R: Pin> {
     state: State
 }
 
+/// Constantly writes the current KeyboardReport out to the USB-HID endpoint
 async fn write_kb_report<'d>(report: &'static Mutex<ThreadModeRawMutex, KeyboardReport>, mut writer: HidWriter<'d, Driver<'d, USB_OTG_FS>, 8>) {
     loop {
         writer.ready().await;
@@ -43,6 +44,7 @@ async fn write_kb_report<'d>(report: &'static Mutex<ThreadModeRawMutex, Keyboard
     }
 }
 
+/// Reads the initial handshake bytes and checks if they're right
 async fn read_initial_bytes<'d, T: BasicInstance>(
     uart: &mut UartRx<'d, T, Async>
 ) -> bool {
@@ -57,6 +59,7 @@ async fn read_initial_bytes<'d, T: BasicInstance>(
     }
 }
 
+/// Main driver loop, manages the connection to the keyboard and stuff
 async fn listen_kb<'p, T: BasicInstance>(
     report: &'static Mutex<ThreadModeRawMutex, KeyboardReport>,
     mut vcc: Output<'p>,
@@ -65,13 +68,23 @@ async fn listen_kb<'p, T: BasicInstance>(
     mut state: State,
     mut uart: UartRx<'p, T, Async>
 ) {
+    // reset to initial state in case it wasn't already at it
     vcc.set_low();
+    rts.set_low();
+
+    // turn on power delivery to kb
     vcc.set_high();
+
+    // wait for keyboard to be ready
     dcd.wait_for_rising_edge().await;
     info!("keyboard ready");
-    rts.set_low();
+
+    // toggle RTS to trigger the handshake frames
     rts.set_high();
+
     let handshake_successful = read_initial_bytes(&mut uart).await;
+    // TODO: handle this when things are stable enough to actually be able to
+    // properly receive the initial frames
     if handshake_successful {
         info!("keyboard handshake successful")
     } else {
@@ -117,6 +130,7 @@ impl<'d, 'u, T: BasicInstance, V: Pin, R: Pin> KeyboardDriver<'d, 'u, T, V, R> {
         }
     }
 
+    /// Runs the driver forever
     pub async fn run(self) {
         info!("starting keyboard driver");
         let vcc = Output::new(
