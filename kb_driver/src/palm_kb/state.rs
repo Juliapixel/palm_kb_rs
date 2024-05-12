@@ -6,7 +6,7 @@ use crate::{debug, error, key_codes::{KeyCode, Modifiers}, warn};
 
 #[derive(Default, PartialEq, Eq)]
 pub struct State {
-    last_key_up: KeyCode,
+    last_key_up: Option<KeyCode>,
     keycodes: Vec<KeyCode, 6>,
     modifiers: Modifiers,
     fn_triggered: bool,
@@ -21,7 +21,7 @@ enum InputType {
 impl State {
     pub const fn new() -> Self {
         Self {
-            last_key_up: KeyCode::KeyBoardNoKey,
+            last_key_up: None,
             keycodes: Vec::new(),
             modifiers: Modifiers::empty(),
             fn_triggered: false
@@ -36,14 +36,14 @@ impl State {
 
             match input_type {
                 InputType::KeyUp => {
-                    if key == self.last_key_up {
+                    if Some(key) == self.last_key_up {
                         self.keycodes.truncate(0);
                         self.modifiers = Modifiers::empty();
                     } else {
                         self.keycodes.retain(|k| *k != key);
                         self.modifiers = self.modifiers.difference(Modifiers::from(key));
                     }
-                    self.last_key_up = key;
+                    self.last_key_up = Some(key);
                 },
                 InputType::KeyDown => {
                     if !self.keycodes.contains(&key) {
@@ -59,6 +59,7 @@ impl State {
                         warn!("tried to insert pressed key that was already pressed")
                     }
                     self.modifiers = self.modifiers.union(Modifiers::from(key));
+                    self.last_key_up = None;
                     debug!("{:08b}", self.modifiers.bits());
                 },
             }
