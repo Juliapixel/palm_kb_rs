@@ -1,4 +1,5 @@
-import requests
+# used this to generate the KeyCodes enum mostly automatically
+
 import json
 import re
 
