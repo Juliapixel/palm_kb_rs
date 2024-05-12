@@ -50,7 +50,7 @@ async fn read_initial_bytes<'d, T: BasicInstance>(
 ) -> bool {
     let mut buf = [0u8; 2];
     let resp = uart.read(&mut buf).await;
-    debug!("received initial buf: {:02x}", &buf);
+    debug!("received initial buf: {:02X}", &buf);
     match resp {
         Ok(_) => {
             buf == [0xFA, 0xFD]
