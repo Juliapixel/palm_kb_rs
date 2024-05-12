@@ -181,22 +181,3 @@ async fn blink_on_time(pin: AnyPin) {
         Timer::after(Duration::from_millis(1950)).await;
     }
 }
-
-async fn log_uart<T: Pin>(kb_vcc: AnyPin, exti: impl Peripheral<P = T::ExtiChannel>, kb_monitor: impl Peripheral<P = T>) {
-    let mut vcc = Output::new(kb_vcc, embassy_stm32::gpio::Level::Low, embassy_stm32::gpio::Speed::Low);
-    vcc.set_high();
-    Timer::after(Duration::from_millis(500)).await;
-
-    let mut input = ExtiInput::new(kb_monitor, exti, embassy_stm32::gpio::Pull::Down);
-    loop {
-        input.wait_for_any_edge().await;
-        match input.get_level() {
-            embassy_stm32::gpio::Level::Low => {
-                debug!("UART low")
-            },
-            embassy_stm32::gpio::Level::High => {
-                debug!("UART high")
-            },
-        }
-    }
-}
