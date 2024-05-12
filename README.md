@@ -24,7 +24,7 @@ B8 -> VCC pin
 
 GND -> GND pin
 
-B4 -> DCD pin
+B4 -> DCD/HotSync pin
 
 B3 -> RTS pin
 
