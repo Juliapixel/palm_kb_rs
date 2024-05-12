@@ -60,7 +60,6 @@ impl State {
                     }
                     self.modifiers = self.modifiers.union(Modifiers::from(key));
                     self.last_key_up = None;
-                    debug!("{:08b}", self.modifiers.bits());
                 },
             }
         } else {
