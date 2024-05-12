@@ -1,3 +1,6 @@
+//! yes, i did make this exclusively so i don't have to type
+//! `#[cfg(feature = "defmt")]` a bajillion times
+
 #![no_std]
 
 use proc_macro::TokenStream;
