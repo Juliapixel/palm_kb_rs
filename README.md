@@ -57,7 +57,7 @@ were referenced from [here](https://www.splorp.com/pdf/stowawayhwref.pdf) <sup>1
 signal on the RXD line is at "RS-232 level", in the real world, it turns out that
 it's only regular ~3.3V inverted USART
 </sup>
-
+<br />
 <sup>
 2. "Keyboard International4" was accidentally labeled as "Keyboard International5" and was fixed in this repo
 </sup>
