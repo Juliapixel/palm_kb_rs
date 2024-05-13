@@ -3,7 +3,6 @@ use usbd_hid::descriptor::KeyboardReport;
 
 use crate::{debug, error, key_codes::{KeyCode, Modifiers}, warn};
 
-
 #[derive(Default, PartialEq, Eq)]
 pub struct State {
     last_key_up: Option<KeyCode>,
@@ -12,7 +11,8 @@ pub struct State {
     fn_triggered: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, defmt::Format)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum InputType {
     KeyUp,
     KeyDown

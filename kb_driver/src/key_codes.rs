@@ -1,7 +1,8 @@
 use crate::palm_kb::matrix::MATRIX;
 
 /// USB-HID key codes
-#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, defmt::Format)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u8)]
 pub enum KeyCode {
     /// Keyboard no key
