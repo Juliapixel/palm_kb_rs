@@ -31,7 +31,7 @@ embassy-stm32 = { version = "0.1", git = "https://github.com/embassy-rs/embassy"
 
 usbd-hid = "0.7"
 bitflags = "2.5.0"
-heapless = { version = "0.8.0", features = ["defmt-03"] }
+heapless = { version = "0.8.0" }
 futures = { version = "0.3.30", default-features = false, features = ["async-await"] }
 
 [features]
@@ -42,5 +42,6 @@ defmt = [
     "embassy-time/defmt-timestamp-uptime",
     "embassy-executor/defmt",
     "embassy-usb/defmt",
+    "heapless/defmt-03",
     "panic-probe/print-defmt"
 ]
