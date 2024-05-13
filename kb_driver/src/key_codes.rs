@@ -445,7 +445,7 @@ pub enum KeyCode {
     KeyboardRightAlt = 230,
     /// Keyboard Right GUI
     /// A.K.A. Meta or Super or Windows or CMD
-    KeyboardRightGui = 231,
+    KeyboardRightGui = 231
 }
 
 bitflags::bitflags! {

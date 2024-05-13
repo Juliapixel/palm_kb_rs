@@ -1,9 +1,6 @@
 use core::cell::UnsafeCell;
 
 use embassy_futures::{join::join, select::select3};
-use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, blocking_mutex::Mutex};
-use embassy_time::{Duration, Ticker, Timer};
-use embassy_usb::class::hid::HidWriter;
 use embassy_stm32::{
     exti::ExtiInput,
     gpio::{Output, Pin},
@@ -11,9 +8,11 @@ use embassy_stm32::{
     peripherals::USB_OTG_FS,
     usart::{BasicInstance, Error, RingBufferedUartRx, UartRx},
     usb::Driver,
-    Peripheral,
-    PeripheralRef
+    Peripheral, PeripheralRef
 };
+use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, blocking_mutex::Mutex};
+use embassy_time::{Duration, Ticker, Timer};
+use embassy_usb::class::hid::HidWriter;
 use embedded_io_async::Read;
 use usbd_hid::descriptor::KeyboardReport;
 
@@ -24,7 +23,8 @@ use self::state::State;
 pub mod matrix;
 pub mod state;
 
-static REPORT: Mutex<ThreadModeRawMutex, UnsafeCell<KeyboardReport>> = Mutex::new(UnsafeCell::new(KeyboardReport::default()));
+static REPORT: Mutex<ThreadModeRawMutex, UnsafeCell<KeyboardReport>> =
+    Mutex::new(UnsafeCell::new(KeyboardReport::default()));
 
 /// Compatibility layer between the Palm keyboard's UART interface and USB-HID
 pub struct KeyboardDriver<'d, 'u, T: BasicInstance, V: Pin, R: Pin> {
@@ -37,15 +37,16 @@ pub struct KeyboardDriver<'d, 'u, T: BasicInstance, V: Pin, R: Pin> {
 }
 
 /// Constantly writes the current KeyboardReport out to the USB-HID endpoint
-async fn write_kb_report<'d>(report: &'static Mutex<ThreadModeRawMutex, UnsafeCell<KeyboardReport>>, mut writer: HidWriter<'d, Driver<'d, USB_OTG_FS>, 8>) {
+async fn write_kb_report<'d>(
+    report: &'static Mutex<ThreadModeRawMutex, UnsafeCell<KeyboardReport>>,
+    mut writer: HidWriter<'d, Driver<'d, USB_OTG_FS>, 8>
+) {
     loop {
         writer.ready().await;
-        let report = unsafe {
-            report.lock(|r| *r.get())
-        };
+        let report = unsafe { report.lock(|r| *r.get()) };
         match writer.write_serialize(&report).await {
             Ok(_) => (),
-            Err(e) => warn!("failed to write to USB endpoint {}", e),
+            Err(e) => warn!("failed to write to USB endpoint {}", e)
         }
     }
 }
@@ -58,10 +59,8 @@ async fn read_initial_bytes<'d, T: BasicInstance>(
     let resp = uart.read_exact(&mut buf).await;
     debug!("received initial buf: {:02X}", &buf);
     match resp {
-        Ok(_) => {
-            buf == [0xFA, 0xFD]
-        },
-        Err(_) => false,
+        Ok(_) => buf == [0xFA, 0xFD],
+        Err(_) => false
     }
 }
 
@@ -77,16 +76,14 @@ async fn receive_forever<'u, T: BasicInstance>(
             Ok(_) => {
                 debug!("received buf: {:08b}", buf[0]);
                 state.update_from_kb_input(buf[0]);
-                unsafe {
-                    report.lock(|r| *r.get() = KeyboardReport::from(&*state))
-                }
-            },
+                unsafe { report.lock(|r| *r.get() = KeyboardReport::from(&*state)) }
+            }
             Err(Error::Framing) => warn!("UART Framing error"),
             Err(Error::BufferTooLong) => warn!("UART buffer too long for DMA"),
             Err(Error::Noise) => warn!("UART Noise error"),
             Err(Error::Overrun) => warn!("UART buffer overrun"),
             Err(Error::Parity) => warn!("UART parity bit error"),
-            Err(_) => error!("UART unknown error"),
+            Err(_) => error!("UART unknown error")
         };
     }
 }
@@ -117,7 +114,9 @@ async fn listen_kb<'p, T: BasicInstance>(
         let handshake_successful = embassy_time::with_timeout(
             Duration::from_millis(100),
             read_initial_bytes(&mut uart)
-        ).await.unwrap_or(false);
+        )
+        .await
+        .unwrap_or(false);
         if handshake_successful {
             info!("keyboard handshake successful");
             break;
@@ -133,8 +132,9 @@ async fn listen_kb<'p, T: BasicInstance>(
         select3(
             dcd.wait_for_rising_edge(),
             ticker.next(),
-            receive_forever(report, &mut state, &mut uart),
-        ).await;
+            receive_forever(report, &mut state, &mut uart)
+        )
+        .await;
 
         let mut err_count: u32 = 0;
         loop {
@@ -146,7 +146,9 @@ async fn listen_kb<'p, T: BasicInstance>(
             let handshake_successful = embassy_time::with_timeout(
                 Duration::from_millis(30),
                 read_initial_bytes(&mut uart)
-            ).await.unwrap_or(false);
+            )
+            .await
+            .unwrap_or(false);
             if handshake_successful {
                 info!("keyboard handshake successful");
                 break;
@@ -195,6 +197,10 @@ impl<'d, 'u, T: BasicInstance, V: Pin, R: Pin> KeyboardDriver<'d, 'u, T, V, R> {
             embassy_stm32::gpio::Level::Low,
             embassy_stm32::gpio::Speed::VeryHigh
         );
-        join(write_kb_report(&REPORT, self.writer), listen_kb(&REPORT, vcc, rts, self.dcd, self.state, self.uart)).await;
+        join(
+            write_kb_report(&REPORT, self.writer),
+            listen_kb(&REPORT, vcc, rts, self.dcd, self.state, self.uart)
+        )
+        .await;
     }
 }

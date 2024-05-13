@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-use kb_driver_proc_macro::{debug, error, info};
 use embassy_executor::Spawner;
 use embassy_futures::select::{select3, Either3};
 use embassy_stm32::{
@@ -20,6 +19,7 @@ use embassy_usb::{
 };
 use handlers::{MyRequestHandler, MyUsbHandler};
 use kb_driver::palm_kb::KeyboardDriver;
+use kb_driver_proc_macro::{debug, error, info};
 use usbd_hid::descriptor::{KeyboardReport, SerializedDescriptor};
 
 #[cfg(feature = "defmt")]
@@ -44,7 +44,7 @@ async fn main(spawner: Spawner) {
         use embassy_stm32::rcc::*;
         config.rcc.hse = Some(Hse {
             freq: Hertz(25_000_000),
-            mode: HseMode::Oscillator,
+            mode: HseMode::Oscillator
         });
         config.rcc.hsi = false;
         config.rcc.pll_src = PllSource::HSE;
@@ -53,7 +53,7 @@ async fn main(spawner: Spawner) {
             mul: PllMul::MUL192,
             divp: Some(PllPDiv::DIV2), // 25MHz / 25 * 192 / 2 = 96Mhz.
             divq: Some(PllQDiv::DIV4), // 25MHz / 25 * 192 / 4 = 48Mhz.
-            divr: None,
+            divr: None
         });
         config.rcc.ahb_pre = AHBPrescaler::DIV1;
         config.rcc.apb1_pre = APBPrescaler::DIV2;
@@ -142,13 +142,8 @@ async fn main(spawner: Spawner) {
         let rxd_pin = p.PA3;
         let dma_chan = p.DMA1_CH5;
 
-        let uart = UartRx::new(
-            p.USART2,
-            UsartIrq {},
-            &rxd_pin,
-            dma_chan,
-            config
-        ).unwrap();
+        let uart =
+            UartRx::new(p.USART2, UsartIrq {}, &rxd_pin, dma_chan, config).unwrap();
 
         let driver = KeyboardDriver::new(uart, p.PB8, p.PB4, p.PB3, p.EXTI3, writer);
         driver.run().await
@@ -158,7 +153,7 @@ async fn main(spawner: Spawner) {
     match failed {
         Either3::First(_) => error!("usb driver task exited unexpectedly"),
         Either3::Second(_) => error!("usb reader task exited unexpectedly"),
-        Either3::Third(_) => error!("uart task exited unexpectedly"),
+        Either3::Third(_) => error!("uart task exited unexpectedly")
     }
 }
 

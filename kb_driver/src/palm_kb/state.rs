@@ -1,14 +1,18 @@
 use heapless::Vec;
 use usbd_hid::descriptor::KeyboardReport;
 
-use crate::{debug, error, key_codes::{KeyCode, Modifiers}, warn};
+use crate::{
+    debug, error,
+    key_codes::{KeyCode, Modifiers},
+    warn
+};
 
 #[derive(Default, PartialEq, Eq)]
 pub struct State {
     last_key_up: Option<KeyCode>,
     keycodes: Vec<KeyCode, 6>,
     modifiers: Modifiers,
-    fn_triggered: bool,
+    fn_triggered: bool
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -45,10 +49,11 @@ impl State {
                         self.modifiers = Modifiers::empty();
                     } else {
                         self.keycodes.retain(|k| *k != key);
-                        self.modifiers = self.modifiers.difference(Modifiers::from(key));
+                        self.modifiers =
+                            self.modifiers.difference(Modifiers::from(key));
                     }
                     self.last_key_up = Some(key);
-                },
+                }
                 InputType::KeyDown => {
                     if !self.keycodes.contains(&key) {
                         match self.keycodes.push(key) {
@@ -57,14 +62,14 @@ impl State {
                                 warn!("tried to push new key code into full keycode vec");
                                 self.keycodes.remove(0);
                                 let _ = self.keycodes.push(key);
-                            },
+                            }
                         }
                     } else {
                         warn!("tried to insert pressed key that was already pressed")
                     }
                     self.modifiers = self.modifiers.union(Modifiers::from(key));
                     self.last_key_up = None;
-                },
+                }
             }
         } else {
             error!("received invalid matrix coordinates from device")
@@ -87,7 +92,7 @@ impl From<&State> for KeyboardReport {
             modifier: value.modifiers.bits(),
             reserved: 0,
             leds: 0,
-            keycodes: value.raw_keycode_arr(),
+            keycodes: value.raw_keycode_arr()
         }
     }
 }
@@ -97,6 +102,10 @@ impl From<u8> for InputType {
     ///
     /// MSB 1 means KeyUp, MSB 0 means KeyDown
     fn from(value: u8) -> Self {
-        if value & (1 << 7) == 0 { Self::KeyDown } else { Self::KeyUp }
+        if value & (1 << 7) == 0 {
+            Self::KeyDown
+        } else {
+            Self::KeyUp
+        }
     }
 }
