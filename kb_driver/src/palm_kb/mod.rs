@@ -1,5 +1,7 @@
-use embassy_futures::{join::join, select::{select, select3, Either3}};
-use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
+use core::cell::UnsafeCell;
+
+use embassy_futures::{join::join, select::select3};
+use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, blocking_mutex::Mutex};
 use embassy_time::{Duration, Ticker, Timer};
 use embassy_usb::class::hid::HidWriter;
 use embassy_stm32::{
@@ -7,7 +9,7 @@ use embassy_stm32::{
     gpio::{Output, Pin},
     mode::Async,
     peripherals::USB_OTG_FS,
-    usart::{BasicInstance, BufferedUartRx, Error, RingBufferedUartRx, UartRx},
+    usart::{BasicInstance, Error, RingBufferedUartRx, UartRx},
     usb::Driver,
     Peripheral,
     PeripheralRef
@@ -22,7 +24,7 @@ use self::state::State;
 pub mod matrix;
 pub mod state;
 
-static REPORT: Mutex<ThreadModeRawMutex, KeyboardReport> = Mutex::new(KeyboardReport::default());
+static REPORT: Mutex<ThreadModeRawMutex, UnsafeCell<KeyboardReport>> = Mutex::new(UnsafeCell::new(KeyboardReport::default()));
 
 /// Compatibility layer between the Palm keyboard's UART interface and USB-HID
 pub struct KeyboardDriver<'d, 'u, T: BasicInstance, V: Pin, R: Pin> {
@@ -35,10 +37,12 @@ pub struct KeyboardDriver<'d, 'u, T: BasicInstance, V: Pin, R: Pin> {
 }
 
 /// Constantly writes the current KeyboardReport out to the USB-HID endpoint
-async fn write_kb_report<'d>(report: &'static Mutex<ThreadModeRawMutex, KeyboardReport>, mut writer: HidWriter<'d, Driver<'d, USB_OTG_FS>, 8>) {
+async fn write_kb_report<'d>(report: &'static Mutex<ThreadModeRawMutex, UnsafeCell<KeyboardReport>>, mut writer: HidWriter<'d, Driver<'d, USB_OTG_FS>, 8>) {
     loop {
         writer.ready().await;
-        let report = *report.lock().await;
+        let report = unsafe {
+            report.lock(|r| *r.get())
+        };
         match writer.write_serialize(&report).await {
             Ok(_) => (),
             Err(e) => warn!("failed to write to USB endpoint {}", e),
@@ -62,7 +66,7 @@ async fn read_initial_bytes<'d, T: BasicInstance>(
 }
 
 async fn receive_forever<'u, T: BasicInstance>(
-    report: &'static Mutex<ThreadModeRawMutex, KeyboardReport>,
+    report: &'static Mutex<ThreadModeRawMutex, UnsafeCell<KeyboardReport>>,
     state: &mut State,
     uart: &mut RingBufferedUartRx<'u, T>
 ) -> ! {
@@ -73,7 +77,9 @@ async fn receive_forever<'u, T: BasicInstance>(
             Ok(_) => {
                 debug!("received buf: {:08b}", buf[0]);
                 state.update_from_kb_input(buf[0]);
-                *report.lock().await = KeyboardReport::from(&*state);
+                unsafe {
+                    report.lock(|r| *r.get() = KeyboardReport::from(&*state))
+                }
             },
             Err(Error::Framing) => warn!("UART Framing error"),
             Err(Error::BufferTooLong) => warn!("UART buffer too long for DMA"),
@@ -86,9 +92,8 @@ async fn receive_forever<'u, T: BasicInstance>(
 }
 
 /// Main driver loop, manages the connection to the keyboard and stuff
-/// TODO: implement periodic keyboard detection to avoid having the keyboard go into sleep mode
 async fn listen_kb<'p, T: BasicInstance>(
-    report: &'static Mutex<ThreadModeRawMutex, KeyboardReport>,
+    report: &'static Mutex<ThreadModeRawMutex, UnsafeCell<KeyboardReport>>,
     mut vcc: Output<'p>,
     mut rts: Output<'p>,
     mut dcd: ExtiInput<'p>,
@@ -121,8 +126,8 @@ async fn listen_kb<'p, T: BasicInstance>(
         }
     }
 
-    // toggle RTS and perform handshake every 30s to avoid going into low-power mode
-    let mut ticker = Ticker::every(Duration::from_secs(30));
+    // toggle RTS and perform handshake to avoid going into low-power mode
+    let mut ticker = Ticker::every(Duration::from_secs(60));
 
     loop {
         select3(
@@ -183,12 +188,12 @@ impl<'d, 'u, T: BasicInstance, V: Pin, R: Pin> KeyboardDriver<'d, 'u, T, V, R> {
         let vcc = Output::new(
             self.vcc,
             embassy_stm32::gpio::Level::Low,
-            embassy_stm32::gpio::Speed::Low
+            embassy_stm32::gpio::Speed::VeryHigh
         );
         let rts = Output::new(
             self.rts,
             embassy_stm32::gpio::Level::Low,
-            embassy_stm32::gpio::Speed::Medium
+            embassy_stm32::gpio::Speed::VeryHigh
         );
         join(write_kb_report(&REPORT, self.writer), listen_kb(&REPORT, vcc, rts, self.dcd, self.state, self.uart)).await;
     }
