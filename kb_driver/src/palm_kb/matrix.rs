@@ -101,7 +101,7 @@ pub const MATRIX: [Option<(Kc, Option<Kc>)>; 90] = [
     Some((Kc::KeyboardSemicolonAndColon, None)),
     // Y9
     Some((Kc::KeyboardSlashAndQuestionMark, None)),
-    Some((Kc::KeyboardUpArrow, None)),
+    Some((Kc::KeyboardUpArrow, Some(Kc::KeyboardPageUp))),
     Some((Kc::KeyBoardNoKey, None)), // special function 4
     None,
     Some((Kc::KeyboardM, None)),
@@ -111,7 +111,7 @@ pub const MATRIX: [Option<(Kc, Option<Kc>)>; 90] = [
     // Y10
     Some((Kc::KeyboardDelete, None)),
     Some((Kc::KeyboardLeftArrow, None)),
-    Some((Kc::KeyboardDownArrow, None)),
+    Some((Kc::KeyboardDownArrow, Some(Kc::KeyboardPageDown))),
     Some((Kc::KeyboardRightArrow, None)),
     None,
     None,
