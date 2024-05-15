@@ -38,7 +38,7 @@ impl State {
 
     /// Uses values received directly from the UART line to update the state
     pub fn update_from_kb_input(&mut self, input: u8) {
-        if let Some(key) = KeyCode::try_from_matrix_key(input) {
+        if let Some((key, alt_key)) = KeyCode::try_from_matrix_key(input) {
             let input_type = InputType::from(input);
             debug!("received key {:?} with input type {:?}", key, input_type);
 
@@ -47,15 +47,37 @@ impl State {
                     if Some(key) == self.last_key_up {
                         self.keycodes.truncate(0);
                         self.modifiers = Modifiers::empty();
+                        self.fn_triggered = false;
                     } else {
+                        if key == KeyCode::KeyboardFn {
+                            self.fn_triggered = false;
+                        }
                         self.keycodes.retain(|k| *k != key);
+                        if let Some(alt_key) = alt_key {
+                            self.keycodes.retain(|k| *k != alt_key)
+                        }
                         self.modifiers =
                             self.modifiers.difference(Modifiers::from(key));
                     }
                     self.last_key_up = Some(key);
                 }
                 InputType::KeyDown => {
-                    if !self.keycodes.contains(&key) {
+                    if key == KeyCode::KeyboardFn {
+                        self.fn_triggered = true;
+                    } else if self.fn_triggered {
+                        if let Some(alt_key) = alt_key {
+                            match self.keycodes.push(alt_key) {
+                                Ok(_) => (),
+                                Err(_) => {
+                                    warn!("tried to push new key code into full keycode vec");
+                                    self.keycodes.remove(0);
+                                    let _ = self.keycodes.push(alt_key);
+                                }
+                            }
+                        } else {
+                            warn!("tried to insert pressed key that was already pressed")
+                        }
+                    } else if !self.keycodes.contains(&key) {
                         match self.keycodes.push(key) {
                             Ok(_) => (),
                             Err(_) => {

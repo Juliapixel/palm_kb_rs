@@ -445,7 +445,10 @@ pub enum KeyCode {
     KeyboardRightAlt = 230,
     /// Keyboard Right GUI
     /// A.K.A. Meta or Super or Windows or CMD
-    KeyboardRightGui = 231
+    KeyboardRightGui = 231,
+    /// Keyboard Fn key
+    /// this is a reserved value technically but idc
+    KeyboardFn = 232
 }
 
 bitflags::bitflags! {
@@ -465,7 +468,7 @@ bitflags::bitflags! {
 
 impl KeyCode {
     #[inline]
-    pub fn try_from_matrix_key(key: u8) -> Option<Self> {
+    pub fn try_from_matrix_key(key: u8) -> Option<(Self, Option<Self>)> {
         let pos = key & 0b0111_1111;
         if let Some(Some(val)) = MATRIX.get(pos as usize) {
             Some(*val)
