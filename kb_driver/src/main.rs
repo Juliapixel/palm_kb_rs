@@ -143,7 +143,7 @@ async fn main(spawner: Spawner) {
         let dma_chan = p.DMA1_CH5;
 
         let uart =
-            UartRx::new(p.USART2, UsartIrq {}, &rxd_pin, dma_chan, config).unwrap();
+            UartRx::new(p.USART2, UsartIrq {}, rxd_pin, dma_chan, config).unwrap();
 
         let driver = KeyboardDriver::new(uart, p.PB8, p.PB4, p.PB3, p.EXTI3, writer);
         driver.run().await

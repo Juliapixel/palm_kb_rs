@@ -64,6 +64,7 @@ async fn read_initial_bytes<'d, T: BasicInstance>(
     }
 }
 
+/// this method *should* be cancel safe (as of embassy-stm32@51d55309)
 async fn receive_forever<'u, T: BasicInstance>(
     report: &'static Mutex<ThreadModeRawMutex, UnsafeCell<KeyboardReport>>,
     state: &mut State,
